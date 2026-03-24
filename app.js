@@ -1,5 +1,11 @@
 // Orb logic for tutorial and final decision
 function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete, fallbackAvg = 16}) {
+  // Only allow orb during prologue (tutorial) or main (final decision).
+  if (state.activeRole !== "prologue" && state.activeRole !== "main") {
+    if (onComplete) onComplete(0);
+    return;
+  }
+
   const orbOverlay = document.getElementById('orbOverlay');
   const orbContainer = document.getElementById('orbContainer');
   const orb = document.getElementById('orb');
@@ -794,7 +800,7 @@ async function startExperience() {
       const tutorialWindowSec = Math.min(15, Math.max(4, videoDuration - 0.5));
       const orbTime = Math.max(0, videoDuration - tutorialWindowSec);
       setTimeout(() => {
-        if (state.started && !state.prologueRunning) {
+        if (state.started && state.activeRole === "prologue" && !state.endedSelected) {
           setRuntime("Tutorial score round (practice only)");
           showOrb({duration: tutorialWindowSec, goal: 1400, tutorial: true});
         }
@@ -970,6 +976,12 @@ async function chooseAndPlayEnding(role, reason) {
   clearFinalDecisionHardTimer();
   clearFinalDecisionWatchdog();
   showEncouragementOverlay(false);
+  // Force-hide the orb overlay so no in-flight orb leaks into the ending.
+  const orbOverlay = document.getElementById('orbOverlay');
+  if (orbOverlay) {
+    orbOverlay.classList.remove('visible', 'tutorial-mode', 'final-mode');
+    orbOverlay.setAttribute('aria-hidden', 'true');
+  }
   state.activeRole = role;
   setRuntime(`Transitioning to ${role.toUpperCase()} (${reason})`);
 
