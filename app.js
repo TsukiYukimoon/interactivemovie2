@@ -1,5 +1,5 @@
 // Orb logic for tutorial and final decision
-function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete}) {
+function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete, fallbackAvg = 16}) {
   const orbOverlay = document.getElementById('orbOverlay');
   const orbContainer = document.getElementById('orbContainer');
   const orb = document.getElementById('orb');
@@ -33,6 +33,7 @@ function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete}) {
   let t = 0;
   let loudnessSum = 0;
   let loudnessSamples = 0;
+  let analyserMissing = false;
 
   orbMsg.textContent = tutorial
     ? 'Tutorial: charge the orb with your voice'
@@ -50,52 +51,52 @@ function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete}) {
     orbOverlay.classList.remove('visible');
     orbOverlay.classList.remove('tutorial-mode', 'final-mode');
     orbOverlay.setAttribute('aria-hidden', 'true');
-    if (onComplete) onComplete(score, { max, streak, avg: loudnessSum / Math.max(1, loudnessSamples) });
+    const avgValue = analyserMissing
+      ? fallbackAvg
+      : loudnessSum / Math.max(1, loudnessSamples);
+    if (onComplete) onComplete(score, { max, streak, avg: avgValue });
   }
 
   function tick() {
+    let avg = 0;
     if (!state.analyser) {
+      analyserMissing = true;
+      orbMsg.textContent = tutorial
+        ? 'Mic not ready; finishing tutorial...'
+        : 'Listening... (mic offline, will pick neutral if silent)';
       // Try to rebuild analyser without aborting the round; keep timer running.
       void ensureAudioAnalyser().catch(() => {});
-      t += 0.1;
-      if (t >= duration) {
-        orbMsg.textContent = tutorial ? 'Tutorial complete!' : 'Decision locked!';
-        setTimeout(finish, 500);
-        return;
+    } else {
+      if (state.audioContext && state.audioContext.state === "suspended") {
+        void state.audioContext.resume().catch(() => {});
       }
-      setTimeout(tick, 100);
-      return;
+
+      const data = new Uint8Array(state.analyser.frequencyBinCount);
+      state.analyser.getByteFrequencyData(data);
+      avg = data.reduce((a, b) => a + b, 0) / data.length;
+      if (orbContainer) {
+        const intensity = Math.min(1, Math.max(0.12, avg / 80));
+        orbContainer.style.setProperty('--orb-intensity', intensity.toFixed(3));
+      }
+
+      streak = avg > 34 ? streak + 1 : Math.max(0, streak - 1);
+      const comboMult = 1 + Math.min(6, Math.floor(streak / 8)) * 0.2;
+      const gain = Math.max(1, Math.round(avg * comboMult));
+
+      score += gain;
+      max = Math.max(max, avg);
+      loudnessSum += avg;
+      loudnessSamples += 1;
+
+      const scale = 1 + Math.min(0.9, avg / 120);
+      orb.style.transform = `scale(${scale})`;
+      orb.style.boxShadow = `0 0 ${24 + avg / 2}px ${6 + avg / 12}px rgba(90, 230, 255, 0.88)`;
+      orbScore.textContent = Math.round(score).toString();
+
+      const level = levelName(avg);
+      if (orbLevel) orbLevel.textContent = `LEVEL: ${level}`;
+      if (orbCombo) orbCombo.textContent = `COMBO x${Math.max(0, Math.floor(streak / 5))}`;
     }
-
-    if (state.audioContext && state.audioContext.state === "suspended") {
-      void state.audioContext.resume().catch(() => {});
-    }
-
-    const data = new Uint8Array(state.analyser.frequencyBinCount);
-    state.analyser.getByteFrequencyData(data);
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    if (orbContainer) {
-      const intensity = Math.min(1, Math.max(0.12, avg / 80));
-      orbContainer.style.setProperty('--orb-intensity', intensity.toFixed(3));
-    }
-
-    streak = avg > 34 ? streak + 1 : Math.max(0, streak - 1);
-    const comboMult = 1 + Math.min(6, Math.floor(streak / 8)) * 0.2;
-    const gain = Math.max(1, Math.round(avg * comboMult));
-
-    score += gain;
-    max = Math.max(max, avg);
-    loudnessSum += avg;
-    loudnessSamples += 1;
-
-    const scale = 1 + Math.min(0.9, avg / 120);
-    orb.style.transform = `scale(${scale})`;
-    orb.style.boxShadow = `0 0 ${24 + avg / 2}px ${6 + avg / 12}px rgba(90, 230, 255, 0.88)`;
-    orbScore.textContent = Math.round(score).toString();
-
-    const level = levelName(avg);
-    if (orbLevel) orbLevel.textContent = `LEVEL: ${level}`;
-    if (orbCombo) orbCombo.textContent = `COMBO x${Math.max(0, Math.floor(streak / 5))}`;
 
     if (tutorial) {
       if (orbProgressFill) {
