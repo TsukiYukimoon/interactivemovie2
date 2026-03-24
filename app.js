@@ -180,7 +180,7 @@ const state = {
   config: {
     lowThreshold: 0.01,
     highThreshold: 0.03,
-    decisionTimestamp: "end-10s",
+    decisionTimestamp: "3:47",
     decisionWindowSec: 35,
     baselineSec: 1,
     pauseOnDecision: false,
@@ -420,7 +420,7 @@ function bindAdminInputs() {
   });
 
   els.decisionTimestamp.addEventListener("change", () => {
-    state.config.decisionTimestamp = els.decisionTimestamp.value.trim() || "end-10s";
+    state.config.decisionTimestamp = els.decisionTimestamp.value.trim() || "3:47";
   });
 
   els.decisionWindow.addEventListener("change", () => {
@@ -583,7 +583,7 @@ function armFinalDecisionHardTimer() {
     return;
   }
   const decisionWindowSec = getMainFinalDecisionWindowSec();
-  const triggerAt = Math.max(0, duration - decisionWindowSec);
+  const triggerAt = getDecisionTriggerAt(duration);
   const fireMs = Math.max(0, (triggerAt - els.screenVideo.currentTime) * 1000);
   state.finalDecisionHardTimerId = setTimeout(() => {
     state.finalDecisionHardTimerId = 0;
@@ -630,8 +630,7 @@ function getMainFinalDecisionWindowSec() {
 function isWithinMainFinalDecisionWindow() {
   const duration = Number.isFinite(els.screenVideo.duration) ? els.screenVideo.duration : 0;
   if (duration <= 0) return false;
-  const decisionWindowSec = getMainFinalDecisionWindowSec();
-  const triggerAt = Math.max(0, duration - decisionWindowSec);
+  const triggerAt = getDecisionTriggerAt(duration);
   return els.screenVideo.currentTime >= triggerAt;
 }
 
@@ -640,7 +639,7 @@ function armMainFinalDecision() {
   if (duration <= 0 || !state.started || state.activeRole !== "main") return;
 
   const decisionWindowSec = getMainFinalDecisionWindowSec();
-  const triggerAt = Math.max(0, duration - decisionWindowSec);
+  const triggerAt = getDecisionTriggerAt(duration);
   const remainingMs = Math.max(0, (triggerAt - els.screenVideo.currentTime) * 1000);
 
   clearFinalDecisionTimer();
@@ -747,7 +746,9 @@ async function startExperience() {
   const micOk = await requestMicrophone();
   if (!micOk) return;
   state.config.decisionWindowSec = 35;
+  state.config.decisionTimestamp = "3:47";
   if (els.decisionWindow) els.decisionWindow.value = "35";
+  if (els.decisionTimestamp) els.decisionTimestamp.value = "3:47";
   state.started = true;
   state.prologueRunning = false;
   state.prologueCompleted = false;
@@ -819,7 +820,9 @@ async function startExperience() {
   if (state.objectUrls.main) {
     state.activeRole = "main";
     state.config.decisionWindowSec = 35;
+    state.config.decisionTimestamp = "3:47";
     if (els.decisionWindow) els.decisionWindow.value = "35";
+    if (els.decisionTimestamp) els.decisionTimestamp.value = "3:47";
     els.screenVideo.src = state.objectUrls.main;
     els.screenVideo.currentTime = 0;
     els.screenVideo.load();
@@ -1602,6 +1605,13 @@ function parseDecisionTimestamp(rawSpec, duration) {
   if (Number.isFinite(numeric)) return Math.max(0, numeric);
 
   return Math.max(0, (duration || 0) - 10);
+}
+
+function getDecisionTriggerAt(duration) {
+  const parsed = parseDecisionTimestamp(state.config.decisionTimestamp, duration);
+  if (Number.isFinite(parsed)) return Math.max(0, Math.min(duration || 0, parsed));
+  const decisionWindowSec = getMainFinalDecisionWindowSec();
+  return Math.max(0, (duration || 0) - decisionWindowSec);
 }
 
 function parseSecondsLiteral(input) {
