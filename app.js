@@ -15,9 +15,14 @@ function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete}) {
   }
 
   orbOverlay.classList.add('visible');
-  // Use the same large visible orb presentation for both prologue and main-ending rounds.
-  orbOverlay.classList.add('tutorial-mode');
-  orbOverlay.classList.remove('final-mode');
+  // Use mode-specific styling so final round cannot inherit tutorial visuals.
+  if (tutorial) {
+    orbOverlay.classList.add('tutorial-mode');
+    orbOverlay.classList.remove('final-mode');
+  } else {
+    orbOverlay.classList.add('final-mode');
+    orbOverlay.classList.remove('tutorial-mode');
+  }
   orbOverlay.setAttribute('aria-hidden', 'false');
   orbScore.textContent = '0';
   if (orbProgressFill) orbProgressFill.style.width = '0%';
@@ -50,8 +55,20 @@ function showOrb({duration = 6, goal = 1200, tutorial = false, onComplete}) {
 
   function tick() {
     if (!state.analyser) {
-      finish();
+      // Try to rebuild analyser without aborting the round; keep timer running.
+      void ensureAudioAnalyser().catch(() => {});
+      t += 0.1;
+      if (t >= duration) {
+        orbMsg.textContent = tutorial ? 'Tutorial complete!' : 'Decision locked!';
+        setTimeout(finish, 500);
+        return;
+      }
+      setTimeout(tick, 100);
       return;
+    }
+
+    if (state.audioContext && state.audioContext.state === "suspended") {
+      void state.audioContext.resume().catch(() => {});
     }
 
     const data = new Uint8Array(state.analyser.frequencyBinCount);
