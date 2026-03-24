@@ -168,6 +168,7 @@ const state = {
   finalDecisionTriggered: false,
   finalDecisionTimeoutId: 0,
   finalDecisionPollId: 0,
+  finalDecisionHardTimerId: 0,
   finalDecisionArmToken: 0,
   isFinalDecision: false,
   micStream: null,
@@ -536,6 +537,13 @@ function clearFinalDecisionTimer() {
   state.finalDecisionArmToken += 1;
 }
 
+function clearFinalDecisionHardTimer() {
+  if (state.finalDecisionHardTimerId) {
+    clearTimeout(state.finalDecisionHardTimerId);
+    state.finalDecisionHardTimerId = 0;
+  }
+}
+
 function clearFinalDecisionWatchdog() {
   if (state.finalDecisionPollId) {
     clearInterval(state.finalDecisionPollId);
@@ -553,9 +561,29 @@ function startFinalDecisionWatchdog() {
     }
     if (isWithinMainFinalDecisionWindow()) {
       clearFinalDecisionWatchdog();
+      clearFinalDecisionHardTimer();
       void launchFinalOrbDecision(getMainFinalDecisionWindowSec());
     }
   }, 500);
+}
+
+function armFinalDecisionHardTimer() {
+  clearFinalDecisionHardTimer();
+  if (!state.started || state.activeRole !== "main" || state.endedSelected || state.finalDecisionTriggered) return;
+  const duration = Number.isFinite(els.screenVideo.duration) ? els.screenVideo.duration : NaN;
+  if (!Number.isFinite(duration) || duration <= 0) {
+    // Retry once metadata arrives.
+    state.finalDecisionHardTimerId = setTimeout(armFinalDecisionHardTimer, 1000);
+    return;
+  }
+  const decisionWindowSec = getMainFinalDecisionWindowSec();
+  const triggerAt = Math.max(0, duration - decisionWindowSec);
+  const fireMs = Math.max(0, (triggerAt - els.screenVideo.currentTime) * 1000);
+  state.finalDecisionHardTimerId = setTimeout(() => {
+    state.finalDecisionHardTimerId = 0;
+    if (!state.started || state.activeRole !== "main" || state.endedSelected || state.finalDecisionTriggered) return;
+    void launchFinalOrbDecision(decisionWindowSec);
+  }, fireMs);
 }
 
 async function launchFinalOrbDecision(durationSec) {
@@ -610,6 +638,7 @@ function armMainFinalDecision() {
   const remainingMs = Math.max(0, (triggerAt - els.screenVideo.currentTime) * 1000);
 
   clearFinalDecisionTimer();
+  armFinalDecisionHardTimer();
   startFinalDecisionWatchdog();
 
   if (els.screenVideo.currentTime >= triggerAt) {
@@ -725,6 +754,7 @@ async function startExperience() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionHardTimer();
   clearFinalDecisionWatchdog();
 
   els.startBtn.disabled = true;
@@ -788,6 +818,7 @@ async function startExperience() {
     setRuntime("Intro video playing");
     armMainFinalDecision();
     startFinalDecisionWatchdog();
+    armFinalDecisionHardTimer();
 
     // Wait for main video to end or for the orb to transition directly into an ending.
     await new Promise((resolve) => {
@@ -923,6 +954,7 @@ async function chooseAndPlayEnding(role, reason) {
   state.endedSelected = true;
   state.decisionRunning = false;
   clearFinalDecisionTimer();
+  clearFinalDecisionHardTimer();
   clearFinalDecisionWatchdog();
   showEncouragementOverlay(false);
   state.activeRole = role;
@@ -972,6 +1004,7 @@ async function returnToMenu() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionHardTimer();
   clearFinalDecisionWatchdog();
   state.started = false;
   state.decisionTriggered = false;
@@ -1015,6 +1048,7 @@ async function restartExperience() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionHardTimer();
   clearFinalDecisionWatchdog();
   state.started = false;
   state.decisionTriggered = false;
