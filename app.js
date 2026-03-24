@@ -181,7 +181,7 @@ const state = {
     lowThreshold: 0.01,
     highThreshold: 0.03,
     decisionTimestamp: "end-10s",
-    decisionWindowSec: 15,
+    decisionWindowSec: 35,
     baselineSec: 1,
     pauseOnDecision: false,
     audioFadeMs: 320,
@@ -425,7 +425,7 @@ function bindAdminInputs() {
 
   els.decisionWindow.addEventListener("change", () => {
     const value = parseFloat(els.decisionWindow.value);
-    state.config.decisionWindowSec = clamp(Number.isFinite(value) ? value : 6, 2, 15);
+    state.config.decisionWindowSec = clamp(Number.isFinite(value) ? value : 6, 2, 120);
     els.decisionWindow.value = String(state.config.decisionWindowSec);
   });
 
@@ -746,8 +746,8 @@ async function startExperience() {
   // Request microphone before starting
   const micOk = await requestMicrophone();
   if (!micOk) return;
-  state.config.decisionWindowSec = 15;
-  if (els.decisionWindow) els.decisionWindow.value = "15";
+  state.config.decisionWindowSec = 35;
+  if (els.decisionWindow) els.decisionWindow.value = "35";
   state.started = true;
   state.prologueRunning = false;
   state.prologueCompleted = false;
@@ -818,8 +818,8 @@ async function startExperience() {
   // Play intro (main) video after prologue
   if (state.objectUrls.main) {
     state.activeRole = "main";
-    state.config.decisionWindowSec = 15;
-    if (els.decisionWindow) els.decisionWindow.value = "15";
+    state.config.decisionWindowSec = 35;
+    if (els.decisionWindow) els.decisionWindow.value = "35";
     els.screenVideo.src = state.objectUrls.main;
     els.screenVideo.currentTime = 0;
     els.screenVideo.load();
