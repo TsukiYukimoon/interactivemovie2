@@ -167,6 +167,7 @@ const state = {
   reverseSessionId: 0,
   finalDecisionTriggered: false,
   finalDecisionTimeoutId: 0,
+  finalDecisionPollId: 0,
   finalDecisionArmToken: 0,
   isFinalDecision: false,
   micStream: null,
@@ -535,6 +536,28 @@ function clearFinalDecisionTimer() {
   state.finalDecisionArmToken += 1;
 }
 
+function clearFinalDecisionWatchdog() {
+  if (state.finalDecisionPollId) {
+    clearInterval(state.finalDecisionPollId);
+    state.finalDecisionPollId = 0;
+  }
+}
+
+function startFinalDecisionWatchdog() {
+  clearFinalDecisionWatchdog();
+  if (!state.started || state.activeRole !== "main" || state.endedSelected || state.finalDecisionTriggered) return;
+  state.finalDecisionPollId = setInterval(() => {
+    if (!state.started || state.activeRole !== "main" || state.endedSelected || state.finalDecisionTriggered) {
+      clearFinalDecisionWatchdog();
+      return;
+    }
+    if (isWithinMainFinalDecisionWindow()) {
+      clearFinalDecisionWatchdog();
+      void launchFinalOrbDecision(getMainFinalDecisionWindowSec());
+    }
+  }, 500);
+}
+
 async function launchFinalOrbDecision(durationSec) {
   if (!state.started || state.activeRole !== "main" || state.endedSelected || state.finalDecisionTriggered) return;
 
@@ -587,6 +610,7 @@ function armMainFinalDecision() {
   const remainingMs = Math.max(0, (triggerAt - els.screenVideo.currentTime) * 1000);
 
   clearFinalDecisionTimer();
+  startFinalDecisionWatchdog();
 
   if (els.screenVideo.currentTime >= triggerAt) {
     void launchFinalOrbDecision(decisionWindowSec);
@@ -701,6 +725,7 @@ async function startExperience() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionWatchdog();
 
   els.startBtn.disabled = true;
   if (els.stage) els.stage.style.display = 'grid';
@@ -762,6 +787,7 @@ async function startExperience() {
     await safePlay(els.screenVideo);
     setRuntime("Intro video playing");
     armMainFinalDecision();
+    startFinalDecisionWatchdog();
 
     // Wait for main video to end or for the orb to transition directly into an ending.
     await new Promise((resolve) => {
@@ -897,6 +923,7 @@ async function chooseAndPlayEnding(role, reason) {
   state.endedSelected = true;
   state.decisionRunning = false;
   clearFinalDecisionTimer();
+  clearFinalDecisionWatchdog();
   showEncouragementOverlay(false);
   state.activeRole = role;
   setRuntime(`Transitioning to ${role.toUpperCase()} (${reason})`);
@@ -945,6 +972,7 @@ async function returnToMenu() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionWatchdog();
   state.started = false;
   state.decisionTriggered = false;
   state.decisionRunning = false;
@@ -987,6 +1015,7 @@ async function restartExperience() {
   state.decisionCancelToken += 1;
   stopReverseLoop();
   clearFinalDecisionTimer();
+  clearFinalDecisionWatchdog();
   state.started = false;
   state.decisionTriggered = false;
   state.decisionRunning = false;
