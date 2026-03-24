@@ -490,6 +490,12 @@ function bindVideoFlow() {
   els.screenVideo.addEventListener("ended", () => {
     if (state.activeRole === "main" && !state.endedSelected) {
       state.mainEnded = true;
+      if (!state.finalDecisionTriggered && !state.decisionRunning) {
+        const decisionWindowSec = getMainFinalDecisionWindowSec() || state.config.decisionWindowSec || 15;
+        setRuntime("Main ended before orb fired; forcing final orb now");
+        void launchFinalOrbDecision(decisionWindowSec);
+        return;
+      }
       if (state.decisionRunning) {
         setRuntime("Main finished, finalizing vote...");
         return;
