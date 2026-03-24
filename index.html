@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Movie Player</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="appRoot">
+    <section id="startPanel" class="panel" aria-label="Start">
+      <h1>Interactive Movie Experience</h1>
+      <p>Welcome! This experience uses your voice. Please click Start and allow microphone access.</p>
+      <button id="micStartBtn" type="button">Start</button>
+      <div id="micStatus" style="margin-top:1em;color:#f88;"></div>
+    </section>
+    <section id="setupPanel" class="panel" aria-label="Setup" style="display:none;">
+      <h2>Upload Movie Files</h2>
+      <div class="input-grid">
+        <div class="file-card">
+          <label for="input-prologue">Prologue Video</label>
+          <input type="file" id="input-prologue" accept="video/*">
+          <span id="name-prologue"></span>
+        </div>
+        <div class="file-card">
+          <label for="input-main">Intro/Main Video</label>
+          <input type="file" id="input-main" accept="video/*">
+          <span id="name-main"></span>
+        </div>
+        <div class="file-card">
+          <label for="input-good">Good Ending Video</label>
+          <input type="file" id="input-good" accept="video/*">
+          <span id="name-good"></span>
+        </div>
+        <div class="file-card">
+          <label for="input-neutral">Neutral Ending Video</label>
+          <input type="file" id="input-neutral" accept="video/*">
+          <span id="name-neutral"></span>
+        </div>
+        <div class="file-card">
+          <label for="input-bad">Bad Ending Video</label>
+          <input type="file" id="input-bad" accept="video/*">
+          <span id="name-bad"></span>
+        </div>
+      </div>
+      <div id="preloadStatus">Upload videos to continue</div>
+      <button id="startBtn" type="button">Start Experience</button>
+    </section>
+    <!-- Orb overlay for tutorial and decision moments -->
+    <div id="orbOverlay" class="orb-overlay" aria-hidden="true">
+      <div id="orbContainer" class="orb-container">
+        <div class="orb-aura"></div>
+        <div class="orb-particles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div id="orb" class="orb-core"></div>
+        <div class="orb-score-box">
+          <div class="orb-score-row">
+            <span>SCORE</span>
+            <strong id="orbScore" class="orb-score">0</strong>
+          </div>
+          <div class="orb-progress" aria-hidden="true">
+            <div id="orbProgressFill" class="orb-progress-fill"></div>
+          </div>
+        </div>
+        <div class="orb-hud">
+          <span id="orbLevel" class="orb-pill">LEVEL: NOVICE</span>
+          <span id="orbCombo" class="orb-pill">COMBO x0</span>
+        </div>
+        <div id="orbMsg" class="orb-message"></div>
+      </div>
+    </div>
+
+    <section id="stage" aria-label="Audience stage">
+      <video id="screenVideo" preload="auto" playsinline></video>
+
+      <div id="prologueOverlay" aria-hidden="true">
+        <div class="prologue-core">
+          <div id="prologueRing" class="prologue-ring">
+            <span id="prologueCountdown">10</span>
+          </div>
+          <h2 id="prologueTitle">PROLOGUE</h2>
+          <p id="prologueInstruction">Prepare for the story...</p>
+        </div>
+      </div>
+
+      <div id="invitationOverlay" aria-hidden="true">
+        <div class="invitation-core">
+          <div id="invitationRing" class="invitation-ring">
+            <span id="invitationCountdown">5</span>
+          </div>
+          <h2 id="invitationTitle">ENERGY SCORE</h2>
+          <p id="energyScore">0</p>
+        </div>
+      </div>
+
+      <!-- (Intro overlay removed) -->
+
+      <!-- (Decision overlay removed) -->
+      <div id="encouragementOverlay" aria-hidden="true">
+        <div class="encouragement-core">
+          <h2 id="encouragementText">Cheer for the ending!</h2>
+        </div>
+      </div>
+
+      <div id="fadeCurtain" aria-hidden="true"></div>
+    </section>
+
+    <aside id="adminPanel" class="panel admin hidden" aria-label="Admin controls">
+      <div class="admin-head">
+        <strong>Admin</strong>
+        <span>Press <kbd>A</kbd> to hide</span>
+      </div>
+
+      <label>
+        Low threshold
+        <input id="lowThreshold" type="range" min="0" max="0.2" step="0.001" value="0.010">
+        <output id="lowThresholdValue">0.010</output>
+      </label>
+
+      <label>
+        High threshold
+        <input id="highThreshold" type="range" min="0" max="0.2" step="0.001" value="0.030">
+        <output id="highThresholdValue">0.030</output>
+      </label>
+
+      <label>
+        Decision timestamp
+        <input id="decisionTimestamp" type="text" value="end-10s" spellcheck="false">
+      </label>
+
+      <label>
+        Decision window (seconds)
+        <input id="decisionWindow" type="number" min="2" max="15" step="0.5" value="6">
+      </label>
+
+      <label class="inline-check">
+        <input id="pauseOnDecision" type="checkbox">
+        Pause / freeze main video during decision
+      </label>
+        <!-- Loop controls removed -->
+      <div id="runtimeInfo" class="runtime-info">Idle</div>
+    </aside>
+
+    <div id="preloadBin" aria-hidden="true">
+      <video id="preload-prologue" preload="auto" muted></video>
+      <video id="preload-main" preload="auto" muted></video>
+      <video id="preload-bad" preload="auto" muted></video>
+      <video id="preload-neutral" preload="auto" muted></video>
+      <video id="preload-good" preload="auto" muted></video>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
