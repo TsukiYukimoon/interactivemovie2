@@ -746,6 +746,8 @@ async function startExperience() {
   // Request microphone before starting
   const micOk = await requestMicrophone();
   if (!micOk) return;
+  state.config.decisionWindowSec = 15;
+  if (els.decisionWindow) els.decisionWindow.value = "15";
   state.started = true;
   state.prologueRunning = false;
   state.prologueCompleted = false;
@@ -816,6 +818,8 @@ async function startExperience() {
   // Play intro (main) video after prologue
   if (state.objectUrls.main) {
     state.activeRole = "main";
+    state.config.decisionWindowSec = 15;
+    if (els.decisionWindow) els.decisionWindow.value = "15";
     els.screenVideo.src = state.objectUrls.main;
     els.screenVideo.currentTime = 0;
     els.screenVideo.load();
